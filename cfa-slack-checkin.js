@@ -1,3 +1,8 @@
+// mongoose
+// request
+// csv builder
+
+
 var Botkit = require('botkit')
 var controller = Botkit.slackbot({
   json_file_store: './db_slackbutton_bot/'
@@ -60,17 +65,29 @@ controller.on('rtm_close', function (bot) {
   console.log('** The RTM api just closed')
 // you may want to attempt to re-open
 })
+controller.on('slash_command', function (bot, message) {
+  console.log('slash command', message)
+  bot.replyPrivate(message, 'You have checked in! Thanks for supporting the brigade! ' + message.text)
+  // refer https://www.codeforamerica.org/brigade/Code-for-San-Francisco/checkin/?event=Hack+Night&question=Is+this+your+first+Hack+Night%3F
+  // send POST request to process.env.checkinUrl
+  // with name, email, mailinglist,
+  // cfapi_url (https://www.codeforamerica.org/api/organizations/Code-for-San-Francisco),
+  // event, question, answer
 
-controller.hears('hello', 'direct_message', function (bot, message) {
+})
+controller.hears('hello world', 'direct_message', function (bot, message) {
+  console.log(message)
+  bot.reply(message, 'Hello! '+message.text)
+})
+controller.hears('hello', 'mention', function (bot, message) {
   bot.reply(message, 'Hello!')
 })
-
 controller.hears('^stop', 'direct_message', function (bot, message) {
   bot.reply(message, 'Goodbye')
   bot.rtm.close()
 })
 
-controller.on(['direct_message', 'mention', 'direct_mention'], function (bot, message) {
+controller.on(['direct_message', 'mention'], function (bot, message) {
   bot.api.reactions.add({
     timestamp: message.ts,
     channel: message.channel,

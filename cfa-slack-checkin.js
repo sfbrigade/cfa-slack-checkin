@@ -8,9 +8,9 @@ var dotenv = require('dotenv')
 dotenv.config()
 
 controller.configureSlackApp({
-  clientId: process.env.clientId,
-  clientSecret: process.env.clientSecret,
-  redirectUri: process.env.redirectUri || ' http://localhost:7777/oauth',
+  clientId: process.env.clientId || process.env.CLIENTID,
+  clientSecret: process.env.clientSecret || process.env.CLIENTSECRET,
+  redirectUri: process.env.redirectUri || process.env.REDIRECTURI || ' http://localhost:7777/oauth',
   scopes: ['users:read', 'bot', 'commands']
 })
 
@@ -19,7 +19,7 @@ function trackBot (bot) {
   _bots[bot.config.token] = bot
 }
 
-controller.setupWebserver(process.env.port, function (err, webserver) {
+controller.setupWebserver(process.env.port || process.env.PORT, function (err, webserver) {
   // set up web endpoints for oauth, receiving webhooks, etc.
   controller
     .createHomepageEndpoint(controller.webserver)

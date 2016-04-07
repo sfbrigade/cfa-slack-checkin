@@ -1,0 +1,47 @@
+{
+  "name": "cfa-slack-checkin",
+  "version": "0.0.1",
+  "description": "A small node service to allow hacknight checkins via slash comand",
+  "main": "cfa-slack-checkin.js",
+  "scripts": {
+    "test": "tap *.tap.js",
+    "start": "node cfa-slack-checkin.js",
+    "develop": "nodemon cfa-slack-checkin.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sfbrigade/cfa-slack-checkin.git"
+  },
+  "keywords": [
+    "slack",
+    "cfa",
+    "code",
+    "for",
+    "america",
+    "hack",
+    "night",
+    "checkin",
+    "brigade",
+    "toolkit",
+    "infrastrucutre",
+    "c4a",
+    "c4sf",
+    "code",
+    "for",
+    "san",
+    "francisco"
+  ],
+  "author": "Trent Oswald <trentoswald@therebelrobot.com> (@therebelrobot)",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sfbrigade/cfa-slack-checkin/issues"
+  },
+  "homepage": "https://github.com/sfbrigade/cfa-slack-checkin#readme",
+  "dependencies": {
+    "botkit": "0.0.15",
+    "dotenv": "^2.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^1.9.1"
+  }
+}

@@ -39,7 +39,10 @@
   "homepage": "https://github.com/sfbrigade/cfa-slack-checkin#readme",
   "dependencies": {
     "botkit": "0.0.15",
-    "dotenv": "^2.0.0"
+    "botkit-storage-mongo": "^1.0.3",
+    "dotenv": "^2.0.0",
+    "lodash": "^4.9.0",
+    "mongoose": "^4.4.12"
   },
   "devDependencies": {
     "nodemon": "^1.9.1"

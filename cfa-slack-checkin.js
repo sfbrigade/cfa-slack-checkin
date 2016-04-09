@@ -1,22 +1,29 @@
 // mongoose
 // request
 // csv builder
-
-
-var Botkit = require('botkit')
-var controller = Botkit.slackbot({
-  json_file_store: './db_slackbutton_bot/'
-})
+var _ = require('lodash')
 
 var dotenv = require('dotenv')
 
 dotenv.config()
 
+// bootstrap database
+require('./helpers/db')()
+
+// retrieve models
+var Log = require('./models/Logs')
+var Team = require('./models/Teams')
+var User = require('./models/Users')
+
+// Set up slack bot
+var Botkit = require('botkit')
+var controller = Botkit.slackbot()
+
 controller.configureSlackApp({
   clientId: process.env.clientId || process.env.CLIENTID,
   clientSecret: process.env.clientSecret || process.env.CLIENTSECRET,
   redirectUri: process.env.redirectUri || process.env.REDIRECTURI || ' http://localhost:7777/oauth',
-  scopes: ['users:read', 'bot', 'commands']
+  scopes: ['users:read', 'team:read', 'bot', 'commands']
 })
 
 var _bots = {}
@@ -36,6 +43,7 @@ controller.setupWebserver(process.env.port || process.env.PORT, function (err, w
     .createWebhookEndpoints(controller.webserver)
 })
 controller.on('create_bot', function (bot, config) {
+  console.log(config)
   if (_bots[bot.config.token]) {
     // already online! do nothing.
   } else {
@@ -48,8 +56,13 @@ controller.on('create_bot', function (bot, config) {
         if (err) {
           console.log(err)
         } else {
-          convo.say('I am a bot that has just joined your team')
-          convo.say('You must now /invite me to a channel so that I can be of use!')
+          convo.say('Thank you for adding CfA Brigade Check in bot!\n'
+            + 'To print out usage options, type `help`\n'
+            + 'To configure this bot, type `configure`\n'
+            + 'To prepare a CSV of checkin statistics, type `prepare report`\n'
+            + "(don't worry, these are only available to team admins)\n"
+            + 'Am I misbehaving? Reach out to my developer, @therebelrobot (trentoswald@therebelrobot.com)\n'
+            + 'or open a github issue at https://github.com/sfbrigade/cfa-slack-checkin/issues/new')
         }
       })
     })
@@ -67,24 +80,77 @@ controller.on('rtm_close', function (bot) {
 })
 controller.on('slash_command', function (bot, message) {
   console.log('slash command', message)
-  bot.replyPrivate(message, 'You have checked in! Thanks for supporting the brigade! ' + message.text)
-  // refer https://www.codeforamerica.org/brigade/Code-for-San-Francisco/checkin/?event=Hack+Night&question=Is+this+your+first+Hack+Night%3F
-  // send POST request to process.env.checkinUrl
-  // with name, email, mailinglist,
-  // cfapi_url (https://www.codeforamerica.org/api/organizations/Code-for-San-Francisco),
-  // event, question, answer
+  bot.api.users.list({}, function (err, results) {
+    console.log(results.members, arguments)
+    var thisUser = _.filter(results.members, {id: message.user})[0]
+    var name = thisUser.real_name || thisUser.name
+    var email = thisUser.profile.email
+    var mailingList = (message.text === 'newsletter')
+    var newsletterComment = mailingList ? ' and signed up for the CfA newsletter' : ''
+    // call mongoose for postURL, cfapi_url and event
+    // refer https://www.codeforamerica.org/brigade/Code-for-San-Francisco/checkin/?event=Hack+Night&question=Is+this+your+first+Hack+Night%3F
+    // send POST request to process.env.checkinUrl
+    // with name, email, mailinglist,
+    // cfapi_url (https://www.codeforamerica.org/api/organizations/Code-for-San-Francisco),
+    // event, question, answer
 
+    bot.replyPrivate(message, 'Thanks, ' + name + ', you have checked in' + newsletterComment + '! Thanks for supporting your brigade!')
+  })
 })
-controller.hears('hello world', 'direct_message', function (bot, message) {
+controller.hears('configure', 'direct_message', function (bot, message) {
+  console.log(bot, message)
+  // check message.user for if admin
+  // if not admin, respond sorry
+  // if admin, request post url
+  bot.api.users.list({}, function (err, results) {
+    console.log(results.members)
+    var thisUser = _.filter(results.members, {id: message.user})[0]
+    var name = thisUser.real_name || thisUser.name
+    if (!thisUser.is_admin) {
+      return bot.reply(message, "I'm sorry " + name + ', bot `configure` options are only available to team admins. Happy hacking!')
+    }
+    bot.startPrivateConversation({user: message.user}, function (err, convo) {
+      convo.say('Hi ' + name + ", let's get your checkin settings configured.")
+      bot.api.team.info({}, function (err, apiResults) {
+        console.log(apiResults)
+        Team.find({team_id: apiResults.team.id}, function (err, mongoResults) {
+          if (err) throw err
+          var thisTeam
+          if (mongoResults.length) {
+            thisTeam = mongoResults[0]
+          } else {
+            thisTeam = new Team(apiResults)
+          }
+          convo.ask('What is the POST url for your CfA Check in form?', function (response, convo) {
+            console.log(response)
+            convo.say('saving checkinUrl: ' + response.text)
+            convo.next()
+          })
+          convo.ask("What is your brigade's cfapi url?", function (response, convo) {
+            console.log(response)
+            convo.say('saving cfapi_url: ' + response.text)
+            convo.next()
+          })
+        })
+      })
+    })
+  })
+})
+controller.hears('prepare report', 'direct_message', function (bot, message) {
   console.log(message)
-  bot.reply(message, 'Hello! '+message.text)
-})
-controller.hears('hello', 'mention', function (bot, message) {
-  bot.reply(message, 'Hello!')
-})
-controller.hears('^stop', 'direct_message', function (bot, message) {
-  bot.reply(message, 'Goodbye')
-  bot.rtm.close()
+  // check message.user for if admin
+  // if not admin, respond sorry
+  // if admin, check type of report and prepare csv for download
+
+  bot.api.users.list({}, function (err, results) {
+    console.log(results.members, arguments)
+    var thisUser = _.filter(results.members, {id: message.user})[0]
+    var name = thisUser.real_name || thisUser.name
+    if (!thisUser.is_admin) {
+      return bot.reply(message, "I'm sorry " + name + ', but checkin reports are only available to team admins. Happy hacking!')
+    }
+    bot.reply(message, 'preparing report for ' + message.text)
+  })
 })
 
 controller.on(['direct_message', 'mention'], function (bot, message) {
@@ -97,23 +163,21 @@ controller.on(['direct_message', 'mention'], function (bot, message) {
     bot.reply(message, 'I heard you loud and clear boss.')
   })
 })
-controller.storage.teams.all(function(err,teams) {
-
+controller.storage.teams.all(function (err, teams) {
   if (err) {
-    throw new Error(err);
+    throw new Error(err)
   }
 
   // connect all teams with bots up to slack!
-  for (var t  in teams) {
+  for (var t in teams) {
     if (teams[t].bot) {
-      controller.spawn(teams[t]).startRTM(function(err, bot) {
+      controller.spawn(teams[t]).startRTM(function (err, bot) {
         if (err) {
-          console.log('Error connecting bot to Slack:',err);
+          console.log('Error connecting bot to Slack:', err)
         } else {
-          trackBot(bot);
+          trackBot(bot)
         }
-      });
+      })
     }
   }
-
-});
+})

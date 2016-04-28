@@ -112,7 +112,7 @@ controller.hears('configure', 'direct_message', function (bot, message) {
     bot.startPrivateConversation({user: message.user}, function (err, convo) {
       convo.say('Hi ' + name + ", let's get your checkin settings configured.")
       bot.api.team.info({}, function (err, apiResults) {
-        console.log(apiResults)
+        console.log(err, apiResults)
         Team.find({team_id: apiResults.team.id}, function (err, mongoResults) {
           if (err) throw err
           var thisTeam
@@ -123,13 +123,22 @@ controller.hears('configure', 'direct_message', function (bot, message) {
           }
           convo.ask('What is the POST url for your CfA Check in form?', function (response, convo) {
             console.log(response)
+            thisTeam.checkinUrl = response.text
             convo.say('saving checkinUrl: ' + response.text)
-            convo.next()
-          })
-          convo.ask("What is your brigade's cfapi url?", function (response, convo) {
-            console.log(response)
-            convo.say('saving cfapi_url: ' + response.text)
-            convo.next()
+            convo.ask("What is your brigade's cfapi url?", function (response, convo) {
+              console.log(response)
+              thisTeam.cfapi_url = response.text
+              convo.say('saving cfapi_url: ' + response.text)
+              thisTeam.save(function(err, results){
+                if(err) {
+                  console.error(err)
+                  convo.say('An error occurred while saving team. '+err.toString())
+                  return convo.next()
+                }
+                convo.say('Team configuration saved successfully. Happy hacking!')
+                convo.next()
+              })
+            })
           })
         })
       })

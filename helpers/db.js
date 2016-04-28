@@ -1,7 +1,9 @@
 var mongoose = require('mongoose')
 
 module.exports = function () {
-  var db = mongoose.connect(process.env.MONGODB || process.env.MONGOLAB_URI)
+  var db = mongoose.connect(process.env.MONGODB || process.env.MONGOLAB_URI, function(){
+    console.log('MongoDB Connection Success!')
+  })
   db.connection.on('error', function () {
     console.log('MongoDB Connection Error. Please make sure that MongoDB is running.')
     process.exit(1)
